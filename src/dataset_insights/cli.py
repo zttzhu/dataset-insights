@@ -8,7 +8,13 @@ import click
 
 from .analyze import compute_missingness, compute_schema, compute_summary, load_csv
 from .plots import plot_correlation_heatmap, plot_distribution_histogram, plot_missingness_bar
-from .reports import write_missingness_csv, write_schema_json, write_summary_md
+from .reports import (
+    write_correlation_csv,
+    write_missingness_csv,
+    write_schema_json,
+    write_summary_md,
+    write_summary_statistics_csv,
+)
 
 
 @click.group()
@@ -43,10 +49,20 @@ def analyze(csv_path: str, outdir: str):
     click.echo("\nWriting reports ...")
     p1 = write_summary_md(summary, out)
     click.echo(f"  {p1}")
+    p1b = write_summary_statistics_csv(summary, out)
+    if p1b:
+        click.echo(f"  {p1b}")
+    else:
+        click.echo("  Skipped: summary_statistics.csv (no numeric columns)")
     p2 = write_schema_json(schema, out)
     click.echo(f"  {p2}")
     p3 = write_missingness_csv(missingness, out)
     click.echo(f"  {p3}")
+    p3b = write_correlation_csv(df, out)
+    if p3b:
+        click.echo(f"  {p3b}")
+    else:
+        click.echo("  Skipped: correlation.csv (fewer than 2 numeric columns)")
 
     # --- Generate plots ---
     click.echo("\nGenerating plots ...")

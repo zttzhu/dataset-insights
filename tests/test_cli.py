@@ -37,8 +37,10 @@ def test_analyze_output_files(runner, sample_csv, tmp_path):
     assert result.exit_code == 0, f"CLI failed:\n{result.output}"
 
     assert (outdir / "summary.md").exists()
+    assert (outdir / "summary_statistics.csv").exists()
     assert (outdir / "schema.json").exists()
     assert (outdir / "missingness.csv").exists()
+    assert (outdir / "correlation.csv").exists()
     assert (outdir / "plots" / "distribution_histogram.png").exists()
     assert (outdir / "plots" / "correlation_heatmap.png").exists()
     assert (outdir / "plots" / "missingness_bar.png").exists()
