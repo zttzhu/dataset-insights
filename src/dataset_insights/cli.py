@@ -6,7 +6,7 @@ from pathlib import Path
 
 import click
 
-from .analyze import compute_missingness, compute_schema, compute_summary, load_csv
+from .analyze import coerce_suspicious_to_nan, compute_missingness, compute_schema, compute_summary, load_csv
 from .plots import plot_correlation_heatmap, plot_distribution_histogram, plot_missingness_bar
 from .reports import (
     write_correlation_csv,
@@ -34,11 +34,17 @@ def main():
 )
 def analyze(csv_path: str, outdir: str):
     """Analyze a CSV file and write reports + diagnostic plots to OUTDIR."""
+    max_examples = 3
     out = Path(outdir)
 
     click.echo(f"Loading {csv_path} ...")
     df = load_csv(csv_path)
+    df, suspicious_audit = coerce_suspicious_to_nan(df)
     click.echo(f"  {df.shape[0]:,} rows x {df.shape[1]} columns")
+
+    if suspicious_audit:
+        total_suspicious = sum(int(entry["count"]) for entry in suspicious_audit.values())
+        click.echo(f"  Detected {total_suspicious:,} suspicious values treated as missing")
 
     # --- Compute ---
     summary = compute_summary(df)
@@ -86,10 +92,24 @@ def analyze(csv_path: str, outdir: str):
     click.echo(f"  {p6}")
 
     # --- Console summary ---
-    total_missing = int(missingness["missing_count"].sum())
-    cols_with_missing = int((missingness["missing_count"] > 0).sum())
+    missing_count_values = missingness["missing_count"].to_numpy(dtype="int64")
+    total_missing = int(missing_count_values.sum())
+    cols_with_missing = int((missing_count_values > 0).sum())
     click.echo(
         f"\nDone. {cols_with_missing}/{df.shape[1]} columns have missing data "
         f"({total_missing:,} total missing values)."
     )
+
+    if suspicious_audit:
+        click.echo("Suspicious values treated as missing:")
+        for column, entry in suspicious_audit.items():
+            count = int(entry["count"])
+            examples_raw = entry["examples"] if isinstance(entry["examples"], list) else []
+            examples = [str(v) for v in examples_raw[:max_examples]]
+            if examples:
+                formatted_examples = ", ".join(repr(v) for v in examples)
+                click.echo(f"  {column}: {count} values (e.g. {formatted_examples})")
+            else:
+                click.echo(f"  {column}: {count} values")
+
     click.echo(f"Output written to: {out.resolve()}/")

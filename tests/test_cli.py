@@ -65,3 +65,26 @@ def test_no_numeric_columns(runner, no_numeric_csv, tmp_path):
     assert not (outdir / "plots" / "distribution_histogram.png").exists()
     assert not (outdir / "plots" / "correlation_heatmap.png").exists()
     assert "Skipped" in result.output
+
+
+def test_cli_suspicious_summary_caps_examples(runner, tmp_path):
+    """CLI should print a compact suspicious-value audit with capped examples."""
+    csv_path = tmp_path / "suspicious.csv"
+    csv_path.write_text(
+        "id,department\n"
+        "1,??missing\n"
+        "2,lost??\n"
+        "3,???unknown???\n"
+        "4,--none--\n"
+        "5,??null??\n"
+    )
+    outdir = tmp_path / "reports"
+    result = runner.invoke(main, ["analyze", str(csv_path), "--outdir", str(outdir)])
+
+    assert result.exit_code == 0
+    assert "Suspicious values treated as missing:" in result.output
+    assert "department: 5 values" in result.output
+    assert "'??missing'" in result.output
+    assert "'lost??'" in result.output
+    assert "'???unknown???'" in result.output
+    assert "'--none--'" not in result.output
