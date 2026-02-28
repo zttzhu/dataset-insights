@@ -20,6 +20,12 @@ def load_csv(path: str | Path) -> pd.DataFrame:
 
     try:
         df = pd.read_csv(path)
+    except UnicodeDecodeError:
+        try:
+            df = pd.read_csv(path, encoding="latin-1")
+        except Exception as exc:
+            print(f"Error: could not parse CSV: {exc}", file=sys.stderr)
+            sys.exit(1)
     except Exception as exc:
         print(f"Error: could not parse CSV: {exc}", file=sys.stderr)
         sys.exit(1)
