@@ -62,6 +62,42 @@ Output written to: /home/user/project/reports/
 
 ---
 
+## Missing Value Placeholders
+
+`dataset-insights` now treats messy placeholder cells as missing in two passes:
+
+1) **Exact-token parsing at CSV load** via `na_values`.
+2) **Whole-cell normalization after load** for wrapped tokens.
+
+Normalization rules:
+
+- trim whitespace
+- lowercase
+- strip leading/trailing wrapper punctuation: `? ! . * - _ ~ #`
+- treat punctuation-only cells as missing (for example: `??`, `---`, `...`)
+- match normalized whole-cell keywords only (no broad substring matching)
+
+Default placeholder keywords (case-insensitive after normalization):
+
+- `missing`, `lost`, `unknown`, `unavailable`, `undefined`
+- `not available`, `not applicable`
+- `blank`, `empty`, `none`, `null`, `nil`
+- `n/a`, `na`, `n.a.`, `n.a`
+- `no data`, `no value`, `tbd`, `tba`
+
+Examples that are treated as missing:
+
+- `??`, `????`, `--`, `...`
+- `??missing`, `lost??`, `---n/a---`, `  Not Available  `
+
+Examples that are **not** treated as missing:
+
+- `not missing`
+- `customer_missing_reason`
+- `lost_and_found`
+
+---
+
 ## Installation Requirements
 
 - Python 3.10+

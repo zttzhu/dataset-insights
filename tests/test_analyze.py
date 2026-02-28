@@ -5,7 +5,13 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from dataset_insights.analyze import compute_missingness, compute_schema, compute_summary, load_csv
+from dataset_insights.analyze import (
+    coerce_suspicious_to_nan,
+    compute_missingness,
+    compute_schema,
+    compute_summary,
+    load_csv,
+)
 
 
 def test_load_csv_valid(sample_csv):
@@ -79,3 +85,74 @@ def test_load_csv_latin1(latin1_csv):
     assert isinstance(df, pd.DataFrame)
     assert df.shape == (2, 2)
     assert "£" in df["price"].iloc[0]
+
+
+def test_load_csv_extra_na_values(messy_csv):
+    """Known placeholder tokens should be parsed as NaN at CSV load time."""
+    df = load_csv(messy_csv)
+    assert pd.isna(df.loc[0, "department"])  # ??
+    assert pd.isna(df.loc[1, "score"])  # missing
+    assert pd.isna(df.loc[6, "score"])  # --
+
+
+def test_coerce_suspicious_to_nan_detects_wrapped_keywords(messy_csv):
+    """Wrapped placeholders such as '??missing' and 'lost??' are coerced to NaN."""
+    df = load_csv(messy_csv)
+    assert not pd.isna(df.loc[3, "department"])
+    assert not pd.isna(df.loc[4, "department"])
+
+    cleaned, audit = coerce_suspicious_to_nan(df)
+
+    assert pd.isna(cleaned.loc[3, "department"])
+    assert pd.isna(cleaned.loc[4, "department"])
+    assert "department" in audit
+    assert audit["department"]["count"] == 2
+
+
+def test_coerce_suspicious_audit_is_compact():
+    """Audit keeps a count with capped unique examples."""
+    df = pd.DataFrame({"token": ["??missing", "??missing", "lost??", "lost??", "lost??"]})
+    _, audit = coerce_suspicious_to_nan(df, max_examples=1)
+
+    assert audit["token"]["count"] == 5
+    assert len(audit["token"]["examples"]) == 1
+
+
+def test_coerce_suspicious_false_positives(false_positive_csv):
+    """Phrase-level text containing keywords should not be over-flagged."""
+    df = load_csv(false_positive_csv)
+    cleaned, audit = coerce_suspicious_to_nan(df)
+
+    assert cleaned["description"].isna().sum() == 0
+    assert cleaned["category"].isna().sum() == 0
+    assert cleaned["status"].isna().sum() == 0
+    assert audit == {}
+
+
+def test_compute_missingness_with_suspicious(messy_csv):
+    """compute_missingness should include suspicious placeholders defensively."""
+    df = load_csv(messy_csv)
+    miss = compute_missingness(df)
+    miss_dict = dict(zip(miss["column"], miss["missing_count"]))
+
+    assert miss_dict["department"] == 4
+    assert miss_dict["score"] == 3
+    assert miss_dict["age"] == 1
+
+
+def test_compute_missingness_false_positive_safety():
+    """Defensive coercion should not treat normal phrases as missing."""
+    df = pd.DataFrame(
+        {
+            "notes": [
+                "not missing",
+                "customer_missing_reason",
+                "lost_and_found",
+                "available",
+                "??missing",
+            ]
+        }
+    )
+    miss = compute_missingness(df)
+    miss_dict = dict(zip(miss["column"], miss["missing_count"]))
+    assert miss_dict["notes"] == 1
