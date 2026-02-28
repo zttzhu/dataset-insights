@@ -46,3 +46,11 @@ def no_numeric_csv(tmp_path: Path) -> Path:
     csv_path = tmp_path / "no_numeric.csv"
     csv_path.write_text("name,city\nAlice,NYC\nBob,LA\n")
     return csv_path
+
+
+@pytest.fixture()
+def latin1_csv(tmp_path: Path) -> Path:
+    """A CSV encoded in Latin-1 containing a £ sign (byte 0xa3)."""
+    csv_path = tmp_path / "latin1.csv"
+    csv_path.write_bytes("id,price\n1,£9.99\n2,£19.50\n".encode("latin-1"))
+    return csv_path

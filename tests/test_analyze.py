@@ -71,3 +71,11 @@ def test_compute_missingness_sorted(sample_csv):
     miss = compute_missingness(df)
     pcts = miss["missing_pct"].tolist()
     assert pcts == sorted(pcts, reverse=True)
+
+
+def test_load_csv_latin1(latin1_csv):
+    """load_csv should fall back to latin-1 when UTF-8 decoding fails."""
+    df = load_csv(latin1_csv)
+    assert isinstance(df, pd.DataFrame)
+    assert df.shape == (2, 2)
+    assert "£" in df["price"].iloc[0]
