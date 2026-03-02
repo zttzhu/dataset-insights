@@ -2,10 +2,13 @@
 
 Instant CSV dataset orientation from the command line. Drop any `.csv` and get:
 
-- **summary.md** — shape, dtypes, and descriptive statistics
+- **summary.md** — shape, dtypes, and quality warning summary
+- **summary_statistics.csv** — numeric descriptive stats including skewness
 - **schema.json** — per-column metadata (type, unique count, sample values)
 - **missingness.csv** — missing value audit per column
-- **3 diagnostic plots** — histograms, correlation heatmap, missingness bar chart
+- **duplicates.csv** and **outliers.csv** — duplicate-row and IQR outlier diagnostics
+- **data_quality.json** — consolidated quality flags + parseability rates
+- **4 diagnostic plots** — histograms, correlation heatmap, missingness bar, box plot
 
 ---
 
@@ -35,15 +38,22 @@ Loading data/sample.csv ...
 
 Writing reports ...
   reports/summary.md
+  reports/summary_statistics.csv
   reports/schema.json
   reports/missingness.csv
+  reports/correlation.csv
+  reports/duplicates.csv
+  reports/outliers.csv
+  reports/data_quality.json
 
 Generating plots ...
   reports/plots/distribution_histogram.png
   reports/plots/correlation_heatmap.png
   reports/plots/missingness_bar.png
+  reports/plots/box_plot.png
 
 Done. 4/12 columns have missing data (87 total missing values).
+Quality issues: 0 critical, 2 warnings, 1 info.
 Output written to: /home/user/project/reports/
 ```
 
@@ -53,12 +63,31 @@ Output written to: /home/user/project/reports/
 
 | File | Description |
 |------|-------------|
-| `reports/summary.md` | Dataset shape, column dtypes, and descriptive stats for numeric columns |
+| `reports/summary.md` | Dataset shape, column dtypes, and grouped quality warnings |
+| `reports/summary_statistics.csv` | Numeric descriptive stats: `count`, `mean`, `std`, `min`, `25%`, `50%`, `75%`, `max`, `skewness` |
 | `reports/schema.json` | JSON array: column name, dtype, unique count, missing count, sample values |
 | `reports/missingness.csv` | Sorted by missing %, columns: `column`, `missing_count`, `missing_pct` |
+| `reports/correlation.csv` | Full Pearson correlation matrix for numeric columns (if 2+ numeric columns) |
+| `reports/duplicates.csv` | Duplicate summary and capped duplicate-row examples (`truncated` and `omitted_count` included) |
+| `reports/outliers.csv` | IQR-based outlier metrics per numeric column (`q1`, `q3`, `iqr`, bounds, count, pct) |
+| `reports/data_quality.json` | Consolidated quality issues, parseability rates, and duplicate summary |
 | `reports/plots/distribution_histogram.png` | Histograms for up to 6 numeric columns |
 | `reports/plots/correlation_heatmap.png` | Pearson correlation heatmap for numeric columns |
 | `reports/plots/missingness_bar.png` | Bar chart of missing % per column |
+| `reports/plots/box_plot.png` | Box plots for up to 6 numeric columns (prioritized by outlier rate) |
+
+---
+
+## Additional Quality Checks
+
+In addition to missing-value detection, `dataset-insights` now performs broad, domain-agnostic checks:
+
+- blank/duplicate column names from the raw CSV header
+- duplicate-row metrics with explicit semantics (`duplicate_rows_excluding_first`)
+- IQR outlier detection with guardrails for sparse columns
+- constant-column, high-cardinality, and leading/trailing whitespace detection
+- parseability rates for object columns (`numeric_parse_pct`, `datetime_parse_pct`)
+- mixed-type warnings when a text column is partially numeric (with conservative thresholds)
 
 ---
 
@@ -117,18 +146,20 @@ Test coverage:
 | Test | Checks |
 |------|--------|
 | `test_cli_help` | `--help` exits 0, prints usage |
-| `test_analyze_output_files` | All 6 output files created |
+| `test_analyze_output_files` | All report + plot artifacts are created |
 | `test_empty_csv` | Graceful error on empty input |
-| `test_missingness_values` | Missingness counts match expected values |
+| `test_compute_missingness_values` | Missingness counts match expected values |
+| `test_compute_duplicates_count_and_cap` | Duplicate semantics + capped examples |
+| `test_compute_outliers_iqr` | IQR outlier counts and bounds |
 
 ---
 
 ## Limitations
 
 - **CSV only** — Excel and Parquet are not supported in v1
-- **3 plots only** — distribution histogram, correlation heatmap, missingness bar
+- **4 plots only** — distribution histogram, correlation heatmap, missingness bar, box plot
 - **No interactive dashboards** — outputs are static PNGs and text files
-- **Up to 6 subplots** in the histogram (top 6 numeric columns by column order)
+- **Up to 6 columns per chart** for histogram and box plot readability caps
 - **Correlation heatmap** requires at least 2 numeric columns
 
 ---
@@ -142,9 +173,9 @@ dataset-insights/
 ├── src/
 │   └── dataset_insights/
 │       ├── cli.py        # click CLI entrypoint
-│       ├── analyze.py    # data loading and statistics
-│       ├── plots.py      # 3 plot generators
-│       └── reports.py    # report file writers
+│       ├── analyze.py    # data loading and quality/statistics checks
+│       ├── plots.py      # 4 plot generators
+│       └── reports.py    # report writers
 ├── tests/
 │   ├── conftest.py
 │   ├── test_cli.py

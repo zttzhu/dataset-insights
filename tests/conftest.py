@@ -93,3 +93,120 @@ def false_positive_csv(tmp_path: Path) -> Path:
     )
     csv_path.write_text(content)
     return csv_path
+
+
+@pytest.fixture()
+def duplicates_csv(tmp_path: Path) -> Path:
+    """CSV with exact duplicate rows for duplicate metrics."""
+    csv_path = tmp_path / "duplicates.csv"
+    content = textwrap.dedent(
+        """\
+        id,name,age
+        1,Alice,30
+        2,Bob,40
+        2,Bob,40
+        3,Carol,35
+        3,Carol,35
+        3,Carol,35
+        """
+    )
+    csv_path.write_text(content)
+    return csv_path
+
+
+@pytest.fixture()
+def outliers_csv(tmp_path: Path) -> Path:
+    """CSV with a clear numeric outlier and enough non-null values."""
+    csv_path = tmp_path / "outliers.csv"
+    content = textwrap.dedent(
+        """\
+        id,value,stable
+        1,10,1
+        2,11,1
+        3,12,1
+        4,13,1
+        5,14,1
+        6,15,1
+        7,16,1
+        8,17,1
+        9,18,1
+        10,19,1
+        11,200,1
+        12,18,1
+        """
+    )
+    csv_path.write_text(content)
+    return csv_path
+
+
+@pytest.fixture()
+def constant_col_csv(tmp_path: Path) -> Path:
+    """CSV with a constant-value column."""
+    csv_path = tmp_path / "constant_col.csv"
+    content = textwrap.dedent(
+        """\
+        id,constant,status
+        1,same,active
+        2,same,active
+        3,same,inactive
+        4,same,active
+        5,same,inactive
+        """
+    )
+    csv_path.write_text(content)
+    return csv_path
+
+
+@pytest.fixture()
+def high_cardinality_csv(tmp_path: Path) -> Path:
+    """CSV with an identifier-like high-cardinality text column."""
+    csv_path = tmp_path / "high_cardinality.csv"
+    rows = ["id,session_key,segment"]
+    for idx in range(1, 31):
+        rows.append(f"{idx},sess_{idx:03d},{'A' if idx % 2 == 0 else 'B'}")
+    csv_path.write_text("\n".join(rows) + "\n")
+    return csv_path
+
+
+@pytest.fixture()
+def mixed_type_csv(tmp_path: Path) -> Path:
+    """CSV with a text column containing mostly numeric values."""
+    csv_path = tmp_path / "mixed_type.csv"
+    content = textwrap.dedent(
+        """\
+        id,amount
+        1,100
+        2,200
+        3,300
+        4,oops
+        5,500
+        6,600
+        """
+    )
+    csv_path.write_text(content)
+    return csv_path
+
+
+@pytest.fixture()
+def whitespace_csv(tmp_path: Path) -> Path:
+    """CSV with leading/trailing whitespace in text values."""
+    csv_path = tmp_path / "whitespace.csv"
+    content = textwrap.dedent(
+        """\
+        id,city
+        1,NYC
+        2, LA
+        3,SF 
+        4,Chicago
+        """
+    )
+    csv_path.write_text(content)
+    return csv_path
+
+
+@pytest.fixture()
+def blank_colname_csv(tmp_path: Path) -> Path:
+    """CSV with blank and duplicate header names in the raw header row."""
+    csv_path = tmp_path / "blank_colname.csv"
+    csv_path.write_text("id,,name,name\n1,10,A,a\n2,20,B,b\n")
+    return csv_path
