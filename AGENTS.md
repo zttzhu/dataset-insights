@@ -116,9 +116,13 @@ Suggested verification order:
   - `schema.json`
   - `missingness.csv`
   - `correlation.csv`
+  - `duplicates.csv`
+  - `outliers.csv`
+  - `data_quality.json`
   - `plots/distribution_histogram.png`
   - `plots/correlation_heatmap.png`
   - `plots/missingness_bar.png`
+  - `plots/box_plot.png`
 - Writer/plot functions should return output `Path` values.
 - Ensure output directories exist using `mkdir(parents=True, exist_ok=True)`.
 

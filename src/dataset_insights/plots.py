@@ -1,8 +1,10 @@
-"""Plot generators: histogram, correlation heatmap, missingness bar chart."""
+"""Plot generators: histogram, correlation heatmap, missingness bar, box plot."""
 
 from __future__ import annotations
 
+from numbers import Real
 from pathlib import Path
+from typing import cast
 
 import matplotlib
 matplotlib.use("Agg")  # headless rendering — must be set before importing pyplot
@@ -13,6 +15,8 @@ import seaborn as sns
 
 _MAX_HISTOGRAM_COLS = 6  # hard cap on subplots
 _MAX_HEATMAP_COLS = 20   # cap columns shown in correlation heatmap
+_MAX_BOXPLOT_COLS = 6
+_MAX_BOXPLOT_ROWS = 50_000
 
 
 def _ensure_plots_dir(outdir: Path) -> Path:
@@ -113,6 +117,55 @@ def plot_missingness_bar(df: pd.DataFrame, outdir: Path) -> Path:
     plt.tight_layout()
 
     out_path = _ensure_plots_dir(outdir) / "missingness_bar.png"
+    fig.savefig(out_path, dpi=100, bbox_inches="tight")
+    plt.close(fig)
+    return out_path
+
+
+def plot_box_plots(
+    df: pd.DataFrame,
+    outdir: Path,
+    outliers: pd.DataFrame | None = None,
+) -> Path | None:
+    """Box plot for numeric columns, capped for readability and speed."""
+    numeric_cols = df.select_dtypes(include="number").columns.tolist()
+    if not numeric_cols:
+        return None
+
+    if outliers is not None and not outliers.empty and {"column", "outlier_pct"}.issubset(outliers.columns):
+        outlier_rate: dict[str, float] = {}
+        column_values = outliers["column"].tolist()
+        outlier_pct_values = outliers["outlier_pct"].tolist()
+        for key_raw, raw_rate in zip(column_values, outlier_pct_values):
+            key = str(key_raw)
+            if isinstance(raw_rate, Real):
+                outlier_rate[key] = float(raw_rate)
+            else:
+                outlier_rate[key] = 0.0
+        ordered_cols = sorted(numeric_cols, key=lambda c: outlier_rate.get(c, 0.0), reverse=True)
+    else:
+        ordered_cols = numeric_cols
+
+    cols = ordered_cols[:_MAX_BOXPLOT_COLS]
+    plot_df = cast(pd.DataFrame, df.loc[:, cols])
+
+    sampled = False
+    if len(plot_df) > _MAX_BOXPLOT_ROWS:
+        plot_df = cast(pd.DataFrame, plot_df.sample(n=_MAX_BOXPLOT_ROWS, random_state=42))
+        sampled = True
+
+    fig, ax = plt.subplots(figsize=(max(8, len(cols) * 1.2), 5))
+    sns.boxplot(data=cast(pd.DataFrame, plot_df), ax=ax)
+    title = "Box Plot of Numeric Columns"
+    if sampled:
+        title += f" (sampled {_MAX_BOXPLOT_ROWS:,} rows)"
+    ax.set_title(title, fontsize=13)
+    ax.set_xlabel("Column")
+    ax.set_ylabel("Value")
+    ax.tick_params(axis="x", rotation=45)
+    plt.tight_layout()
+
+    out_path = _ensure_plots_dir(outdir) / "box_plot.png"
     fig.savefig(out_path, dpi=100, bbox_inches="tight")
     plt.close(fig)
     return out_path

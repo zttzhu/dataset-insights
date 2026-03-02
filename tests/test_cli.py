@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 from click.testing import CliRunner
 
@@ -41,9 +39,13 @@ def test_analyze_output_files(runner, sample_csv, tmp_path):
     assert (outdir / "schema.json").exists()
     assert (outdir / "missingness.csv").exists()
     assert (outdir / "correlation.csv").exists()
+    assert (outdir / "duplicates.csv").exists()
+    assert (outdir / "outliers.csv").exists()
+    assert (outdir / "data_quality.json").exists()
     assert (outdir / "plots" / "distribution_histogram.png").exists()
     assert (outdir / "plots" / "correlation_heatmap.png").exists()
     assert (outdir / "plots" / "missingness_bar.png").exists()
+    assert (outdir / "plots" / "box_plot.png").exists()
 
 
 def test_empty_csv(runner, empty_csv, tmp_path):
@@ -55,15 +57,14 @@ def test_empty_csv(runner, empty_csv, tmp_path):
 
 
 def test_no_numeric_columns(runner, no_numeric_csv, tmp_path):
-    """Runs successfully on a CSV with no numeric columns; skips histogram/heatmap."""
+    """Runs successfully on a CSV with no numeric columns; skips numeric-only plots."""
     outdir = tmp_path / "reports"
     result = runner.invoke(main, ["analyze", str(no_numeric_csv), "--outdir", str(outdir)])
     assert result.exit_code == 0
-    # missingness bar is always generated
     assert (outdir / "plots" / "missingness_bar.png").exists()
-    # histogram and heatmap should be skipped
     assert not (outdir / "plots" / "distribution_histogram.png").exists()
     assert not (outdir / "plots" / "correlation_heatmap.png").exists()
+    assert not (outdir / "plots" / "box_plot.png").exists()
     assert "Skipped" in result.output
 
 
@@ -88,3 +89,13 @@ def test_cli_suspicious_summary_caps_examples(runner, tmp_path):
     assert "'lost??'" in result.output
     assert "'???unknown???'" in result.output
     assert "'--none--'" not in result.output
+
+
+def test_cli_quality_warnings(runner, duplicates_csv, tmp_path):
+    """CLI should print a quality issue summary when checks flag issues."""
+    outdir = tmp_path / "reports"
+    result = runner.invoke(main, ["analyze", str(duplicates_csv), "--outdir", str(outdir)])
+
+    assert result.exit_code == 0
+    assert "Quality issues:" in result.output
+    assert "WARN" in result.output
