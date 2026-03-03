@@ -85,6 +85,7 @@ In addition to missing-value detection, `dataset-insights` now performs broad, d
 - blank/duplicate column names from the raw CSV header
 - duplicate-row metrics with explicit semantics (`duplicate_rows_excluding_first`)
 - IQR outlier detection with guardrails for sparse columns
+- high-missing column detection (`high_missing`) with thresholds (`warn` >= 20%, `critical` >= 50%)
 - constant-column, high-cardinality, and leading/trailing whitespace detection
 - parseability rates for object columns (`numeric_parse_pct`, `datetime_parse_pct`)
 - mixed-type warnings when a text column is partially numeric (with conservative thresholds)
