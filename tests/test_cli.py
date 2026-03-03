@@ -47,6 +47,22 @@ def test_analyze_output_files(runner, sample_csv, tmp_path):
     assert (outdir / "plots" / "missingness_bar.png").exists()
     assert (outdir / "plots" / "box_plot.png").exists()
 
+    summary_md = (outdir / "summary.md").read_text()
+    assert "## Insights" in summary_md
+    assert "### Duplicate Rows" in summary_md
+
+
+def test_summary_md_duplicate_insight_text(runner, duplicates_csv, tmp_path):
+    """summary.md should include a plain-English duplicate summary sentence."""
+    outdir = tmp_path / "reports"
+    result = runner.invoke(main, ["analyze", str(duplicates_csv), "--outdir", str(outdir)])
+    assert result.exit_code == 0
+
+    summary_md = (outdir / "summary.md").read_text()
+    assert "rows are exact copies of a row that already appeared earlier" in summary_md
+    assert "distinct repeated patterns" in summary_md
+    assert "are not shown" in summary_md
+
 
 def test_empty_csv(runner, empty_csv, tmp_path):
     """Graceful error message and non-zero exit on an empty CSV."""

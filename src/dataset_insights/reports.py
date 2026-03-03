@@ -26,10 +26,121 @@ def _issue_to_dict(issue: QualityIssue | dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _build_insights_section(
+    summary: dict,
+    missingness: pd.DataFrame | None,
+    duplicates: dict[str, Any] | None,
+    outliers: pd.DataFrame | None,
+    quality_issues: list[QualityIssue] | None,
+) -> list[str]:
+    rows = int(summary["shape"]["rows"])
+    cols = int(summary["shape"]["columns"])
+    lines: list[str] = ["### Dataset Overview"]
+    lines.append(
+        f"This dataset contains {rows:,} rows and {cols} columns. "
+        "Detailed numeric statistics are in summary_statistics.csv."
+    )
+
+    lines.append("\n### Missing Data")
+    if missingness is None or missingness.empty:
+        lines.append("Missingness summary is not available in this run.")
+    else:
+        missing_counts = missingness["missing_count"].to_numpy(dtype="int64")
+        total_missing = int(missing_counts.sum())
+        cols_with_missing = int((missing_counts > 0).sum())
+        if cols_with_missing == 0:
+            lines.append("No missing values were detected across all columns.")
+        else:
+            missing_only = missingness[missingness["missing_count"] > 0].reset_index(drop=True)
+            top_col = str(missing_only.loc[0, "column"])
+            top_pct = float(missing_only.loc[0, "missing_pct"])
+            if len(missing_only) > 1:
+                second_col = str(missing_only.loc[1, "column"])
+                second_pct = float(missing_only.loc[1, "missing_pct"])
+                lines.append(
+                    f"{cols_with_missing} out of {cols} columns have missing values "
+                    f"({total_missing:,} missing values total). "
+                    f"The most affected columns are `{top_col}` ({top_pct:.2f}%) and "
+                    f"`{second_col}` ({second_pct:.2f}%)."
+                )
+            else:
+                lines.append(
+                    f"{cols_with_missing} out of {cols} columns have missing values "
+                    f"({total_missing:,} missing values total). "
+                    f"The most affected column is `{top_col}` ({top_pct:.2f}%)."
+                )
+            lines.append("See missingness.csv for the full per-column breakdown.")
+
+    lines.append("\n### Duplicate Rows")
+    if duplicates is None:
+        lines.append("Duplicate summary is not available in this run.")
+    else:
+        duplicate_rows = int(duplicates.get("duplicate_rows_excluding_first", 0))
+        duplicate_groups = int(duplicates.get("duplicate_group_count", 0))
+        duplicate_pct = float(duplicates.get("duplicate_row_pct", 0.0))
+        shown_examples = len(duplicates.get("example_rows", []))
+        omitted_count = int(duplicates.get("omitted_count", 0))
+        if duplicate_rows == 0:
+            lines.append("No duplicate rows were detected.")
+        else:
+            lines.append(
+                f"In this dataset, {duplicate_rows:,} rows are exact copies of a row that "
+                f"already appeared earlier. These duplicates come from {duplicate_groups:,} "
+                f"distinct repeated patterns, making up {duplicate_pct:.2f}% of all rows. "
+                f"Here are {shown_examples} example duplicate rows in duplicates.csv; "
+                f"the other {omitted_count:,} are not shown."
+            )
+
+    lines.append("\n### Outliers (IQR Method)")
+    if outliers is None or outliers.empty:
+        lines.append("No numeric outlier summary is available for this run.")
+    else:
+        flagged = outliers[outliers["outlier_count"] > 0].copy()
+        if flagged.empty:
+            lines.append("No outliers were detected with the IQR method.")
+        else:
+            flagged = flagged.sort_values("outlier_pct", ascending=False).reset_index(drop=True)
+            top = flagged.head(3)
+            highlights = []
+            for _, row in top.iterrows():
+                highlights.append(
+                    f"`{row['column']}` has {int(row['outlier_count']):,} outliers "
+                    f"({float(row['outlier_pct']):.2f}%)"
+                )
+            lines.append(
+                f"{len(flagged)} numeric columns have IQR outliers. Top columns by outlier rate: "
+                f"{'; '.join(highlights)}. See outliers.csv for full bounds and counts."
+            )
+
+    lines.append("\n### Data Quality Issues")
+    issue_dicts = [_issue_to_dict(issue) for issue in (quality_issues or [])]
+    if not issue_dicts:
+        lines.append("No data quality issues were flagged.")
+    else:
+        counts = {"critical": 0, "warn": 0, "info": 0}
+        for issue in issue_dicts:
+            severity = str(issue["severity"])
+            if severity in counts:
+                counts[severity] += 1
+        lines.append(
+            f"{counts['critical']} critical, {counts['warn']} warning(s), and "
+            f"{counts['info']} info issue(s) were flagged."
+        )
+        for issue in issue_dicts[:5]:
+            prefix = f"`{issue['column']}`: " if issue.get("column") else ""
+            lines.append(f"- {prefix}{issue['message']}")
+        lines.append("See data_quality.json for complete issue details and parseability metrics.")
+
+    return lines
+
+
 def write_summary_md(
     summary: dict,
     outdir: Path,
     quality_issues: list[QualityIssue] | None = None,
+    missingness: pd.DataFrame | None = None,
+    duplicates: dict[str, Any] | None = None,
+    outliers: pd.DataFrame | None = None,
 ) -> Path:
     """Write a concise dataset overview to summary.md."""
     outdir.mkdir(parents=True, exist_ok=True)
@@ -54,6 +165,17 @@ def write_summary_md(
         )
     else:
         lines.append("\n_No numeric columns found._")
+
+    lines.append("\n## Insights\n")
+    lines.extend(
+        _build_insights_section(
+            summary=summary,
+            missingness=missingness,
+            duplicates=duplicates,
+            outliers=outliers,
+            quality_issues=quality_issues,
+        )
+    )
 
     issues = quality_issues or []
     lines.append("\n## Data Quality Warnings\n")

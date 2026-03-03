@@ -98,7 +98,14 @@ def analyze(csv_path: str, outdir: str):
 
     # --- Write reports ---
     click.echo("\nWriting reports ...")
-    p1 = write_summary_md(summary, out, quality_issues=quality_issues)
+    p1 = write_summary_md(
+        summary,
+        out,
+        quality_issues=quality_issues,
+        missingness=missingness,
+        duplicates=duplicates,
+        outliers=outliers,
+    )
     click.echo(f"  {p1}")
 
     p1b = write_summary_statistics_csv(summary, out)
