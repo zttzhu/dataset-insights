@@ -210,3 +210,28 @@ def blank_colname_csv(tmp_path: Path) -> Path:
     csv_path = tmp_path / "blank_colname.csv"
     csv_path.write_text("id,,name,name\n1,10,A,a\n2,20,B,b\n")
     return csv_path
+
+
+@pytest.fixture()
+def high_missing_csv(tmp_path: Path) -> Path:
+    """CSV where sparse_critical is 90% missing (critical) and sparse_warn is 30% missing (warn)."""
+    csv_path = tmp_path / "high_missing.csv"
+    # sparse_critical: 9/10 missing = 90%  → critical (>= 50%)
+    # sparse_warn:     3/10 missing = 30%  → warn    (>= 20%, < 50%)
+    content = textwrap.dedent(
+        """\
+        id,sparse_critical,sparse_warn
+        1,,
+        2,,
+        3,,
+        4,,value
+        5,,value
+        6,,value
+        7,,value
+        8,,value
+        9,data,value
+        10,,value
+        """
+    )
+    csv_path.write_text(content)
+    return csv_path

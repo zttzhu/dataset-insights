@@ -77,7 +77,7 @@ def test_summary_md_duplicate_insight_text(runner, duplicates_csv, tmp_path):
     summary_md = (outdir / "summary.md").read_text()
     assert "rows are exact copies of a row that already appeared earlier" in summary_md
     assert "distinct repeated patterns" in summary_md
-    assert "are not shown" in summary_md
+    assert "duplicates.csv" in summary_md
 
 
 def test_analyze_unicode_column_names_writes_reports(runner, tmp_path):

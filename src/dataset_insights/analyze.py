@@ -48,6 +48,8 @@ CONSTANT_COLUMN_THRESHOLD = 1
 MIXED_TYPE_NUMERIC_THRESHOLD = 0.50
 PARSEABILITY_ACTIONABLE_LOW = 20.0
 PARSEABILITY_ACTIONABLE_HIGH = 95.0
+MISSING_CRITICAL_THRESHOLD = 50.0  # percent missing → critical issue
+MISSING_WARN_THRESHOLD = 20.0      # percent missing → warn issue
 
 
 EXTRA_NA_VALUES = [
@@ -354,7 +356,7 @@ def compute_schema(df: pd.DataFrame) -> list[dict]:
     for col in df.columns:
         series = cast(pd.Series, df[col])
         sample = series.dropna().head(3).tolist()
-        unique_count = int(pd.Index(series.dropna().unique()).size)
+        unique_count = int(series.nunique(dropna=True))
         missing_count = int(series.isna().to_numpy(dtype=bool).sum())
         schema.append(
             {
@@ -528,13 +530,11 @@ def compute_parseability(df: pd.DataFrame) -> pd.DataFrame:
             datetime_count = 0
         else:
             numeric_values = pd.to_numeric(candidate, errors="coerce")
-            numeric_count = int(sum(bool(pd.notna(v)) for v in pd.Series(numeric_values).tolist()))
+            numeric_count = int(numeric_values.notna().sum())
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", category=UserWarning)
                 datetime_values = pd.to_datetime(candidate, errors="coerce")
-            datetime_count = int(
-                sum(bool(pd.notna(v)) for v in pd.Series(datetime_values).tolist())
-            )
+            datetime_count = int(datetime_values.notna().sum())
 
         numeric_pct = round((numeric_count / non_empty_count * 100), 2) if non_empty_count else 0.0
         datetime_pct = (
@@ -574,9 +574,49 @@ def detect_column_warnings(
         if issue is not None:
             issues.append(issue)
 
+    total_rows = len(df)
     for col in df.columns:
         series = cast(pd.Series, df[col])
         non_null = int(series.notna().sum())
+        missing_count = total_rows - non_null
+
+        if total_rows > 0 and missing_count > 0:
+            missing_pct = round(missing_count / total_rows * 100, 2)
+            if missing_pct >= MISSING_CRITICAL_THRESHOLD:
+                issues.append(
+                    QualityIssue(
+                        rule="high_missing",
+                        severity="critical",
+                        column=str(col),
+                        count=missing_count,
+                        pct=missing_pct,
+                        examples=[],
+                        message=(
+                            f"Column '{col}' is {missing_pct:.2f}% missing "
+                            f"({missing_count}/{total_rows} values)."
+                        ),
+                        suggestion=(
+                            "Investigate data source; consider imputing or dropping this column."
+                        ),
+                    )
+                )
+            elif missing_pct >= MISSING_WARN_THRESHOLD:
+                issues.append(
+                    QualityIssue(
+                        rule="high_missing",
+                        severity="warn",
+                        column=str(col),
+                        count=missing_count,
+                        pct=missing_pct,
+                        examples=[],
+                        message=(
+                            f"Column '{col}' is {missing_pct:.2f}% missing "
+                            f"({missing_count}/{total_rows} values)."
+                        ),
+                        suggestion="Review missingness pattern; consider imputation or deletion.",
+                    )
+                )
+
         if non_null == 0:
             continue
 

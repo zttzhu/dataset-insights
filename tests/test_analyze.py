@@ -6,6 +6,8 @@ import pandas as pd
 import pytest
 
 from dataset_insights.analyze import (
+    MISSING_CRITICAL_THRESHOLD,
+    MISSING_WARN_THRESHOLD,
     coerce_suspicious_to_nan,
     compute_duplicates,
     compute_missingness,
@@ -300,6 +302,48 @@ def test_detect_partial_parseability_issue():
     df = pd.DataFrame({"event_time": ["2024-01-01", "2024-03-01", "bad", "maybe"]})
     issues, _ = detect_column_warnings(df)
     assert any(i.rule == "partial_parseability" and i.column == "event_time" for i in issues)
+
+
+def test_detect_high_missing_critical(high_missing_csv):
+    """Columns with >= 50% missing values should get a critical quality issue."""
+    df = load_csv(high_missing_csv)
+    issues, _ = detect_column_warnings(df)
+
+    issue = next(
+        (i for i in issues if i.rule == "high_missing" and i.column == "sparse_critical"),
+        None,
+    )
+    assert issue is not None, "Expected a 'high_missing' issue for sparse_critical"
+    assert issue.severity == "critical"
+    assert issue.pct >= MISSING_CRITICAL_THRESHOLD
+
+
+def test_detect_high_missing_warn(high_missing_csv):
+    """Columns with >= 20% and < 50% missing values should get a warn quality issue."""
+    df = load_csv(high_missing_csv)
+    issues, _ = detect_column_warnings(df)
+
+    issue = next(
+        (i for i in issues if i.rule == "high_missing" and i.column == "sparse_warn"),
+        None,
+    )
+    assert issue is not None, "Expected a 'high_missing' issue for sparse_warn"
+    assert issue.severity == "warn"
+    assert MISSING_WARN_THRESHOLD <= issue.pct < MISSING_CRITICAL_THRESHOLD
+
+
+def test_detect_high_missing_no_false_positive(sample_csv):
+    """Columns with < 20% missing should not generate a high_missing issue."""
+    df = load_csv(sample_csv)
+    issues, _ = detect_column_warnings(df)
+
+    # sample_csv has max 30% missing (score column) — actually 30% >= 20% so warn is expected
+    # but id and salary are 0% missing, age/department are 10% missing → no high_missing
+    flagged = {i.column for i in issues if i.rule == "high_missing"}
+    assert "id" not in flagged
+    assert "salary" not in flagged
+    assert "age" not in flagged
+    assert "department" not in flagged
 
 
 def test_large_dataset_smoke():
