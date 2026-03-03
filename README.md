@@ -78,23 +78,23 @@ Output written to: /home/user/project/reports/
 
 ---
 
-## Additional Quality Checks
+## Quality Checks
 
-In addition to missing-value detection, `dataset-insights` now performs broad, domain-agnostic checks:
+Beyond missing-value detection, `dataset-insights` performs broad, domain-agnostic quality checks:
 
-- blank/duplicate column names from the raw CSV header
-- duplicate-row metrics with explicit semantics (`duplicate_rows_excluding_first`)
+- Blank and duplicate column names from the raw CSV header
+- Duplicate-row metrics with explicit semantics (`duplicate_rows_excluding_first`)
 - IQR outlier detection with guardrails for sparse columns
-- high-missing column detection (`high_missing`) with thresholds (`warn` >= 20%, `critical` >= 50%)
-- constant-column, high-cardinality, and leading/trailing whitespace detection
-- parseability rates for object columns (`numeric_parse_pct`, `datetime_parse_pct`)
-- mixed-type warnings when a text column is partially numeric (with conservative thresholds)
+- High-missing column detection (`high_missing`) with thresholds (`warn` >= 20%, `critical` >= 50%)
+- Constant-column, high-cardinality, and leading/trailing whitespace detection
+- Parseability rates for object columns (`numeric_parse_pct`, `datetime_parse_pct`)
+- Mixed-type warnings when a text column is partially numeric (with conservative thresholds)
 
 ---
 
 ## Missing Value Placeholders
 
-`dataset-insights` now treats messy placeholder cells as missing in two passes:
+Messy placeholder cells are treated as missing in two passes:
 
 1) **Exact-token parsing at CSV load** via `na_values`.
 2) **Whole-cell normalization after load** for wrapped tokens.
@@ -138,20 +138,11 @@ Examples that are **not** treated as missing:
 ## Running Tests
 
 ```bash
-pip install pytest
+pip install -e .[dev]
 pytest tests/
 ```
 
-Test coverage:
-
-| Test | Checks |
-|------|--------|
-| `test_cli_help` | `--help` exits 0, prints usage |
-| `test_analyze_output_files` | All report + plot artifacts are created |
-| `test_empty_csv` | Graceful error on empty input |
-| `test_compute_missingness_values` | Missingness counts match expected values |
-| `test_compute_duplicates_count_and_cap` | Duplicate semantics + capped examples |
-| `test_compute_outliers_iqr` | IQR outlier counts and bounds |
+The test suite includes 45 tests covering CSV loading, missing-value detection, duplicate/outlier analysis, quality warnings, and full CLI integration.
 
 ---
 
@@ -165,21 +156,31 @@ Test coverage:
 
 ---
 
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
+---
+
 ## Project Structure
 
 ```
 dataset-insights/
 ├── pyproject.toml
 ├── README.md
+├── AGENTS.md
+├── LICENSE
+├── data/
+│   └── sample.csv         # bundled demo dataset
 ├── src/
 │   └── dataset_insights/
-│       ├── cli.py        # click CLI entrypoint
-│       ├── analyze.py    # data loading and quality/statistics checks
-│       ├── plots.py      # 4 plot generators
-│       └── reports.py    # report writers
-├── tests/
-│   ├── conftest.py
-│   ├── test_cli.py
-│   └── test_analyze.py
-└── data/                 # place your CSV files here
+│       ├── __init__.py
+│       ├── cli.py          # Click CLI entrypoint
+│       ├── analyze.py      # data loading and quality/statistics checks
+│       ├── plots.py        # 4 plot generators
+│       └── reports.py      # report writers
+└── tests/
+    ├── conftest.py
+    ├── test_cli.py
+    └── test_analyze.py
 ```

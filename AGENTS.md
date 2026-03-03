@@ -11,6 +11,7 @@ Guidance for coding agents working in `dataset-insights`.
 ## 2) Repository Map
 - `pyproject.toml`: package metadata, dependencies, CLI entrypoint.
 - `README.md`: user docs and command examples.
+- `LICENSE`: MIT license.
 - `src/dataset_insights/cli.py`: Click CLI command flow.
 - `src/dataset_insights/analyze.py`: CSV load + core statistics.
 - `src/dataset_insights/reports.py`: markdown/csv/json writers.
@@ -143,15 +144,7 @@ Suggested verification order:
 - Keep commits coherent and reviewable.
 - Prefer feature branches for PRs; avoid direct pushes to `main`.
 
-## 11) Cursor / Copilot Rule Files
-Checked for additional instruction files:
-- `.cursor/rules/`: not present
-- `.cursorrules`: not present
-- `.github/copilot-instructions.md`: not present
-
-No additional Cursor/Copilot instruction files are currently active in this repo.
-
-## 12) Quick Agent Checklist
+## 11) Quick Agent Checklist
 - Read relevant source and tests before editing.
 - Implement the smallest acceptable change.
 - Add or update tests for behavior changes.
