@@ -180,6 +180,20 @@ def test_compute_missingness_false_positive_safety():
     assert miss_dict["notes"] == 1
 
 
+def test_compute_missingness_skip_normalization_flag():
+    """Callers can skip re-normalization when data is already cleaned."""
+    df = pd.DataFrame({"token": ["??missing", "ok"]})
+    with_normalization = compute_missingness(df)
+    without_normalization = compute_missingness(df, normalize_suspicious=False)
+
+    with_dict = dict(zip(with_normalization["column"], with_normalization["missing_count"]))
+    without_dict = dict(
+        zip(without_normalization["column"], without_normalization["missing_count"])
+    )
+    assert with_dict["token"] == 1
+    assert without_dict["token"] == 0
+
+
 def test_compute_duplicates_count_and_cap(duplicates_csv):
     df = load_csv(duplicates_csv)
     duplicates = compute_duplicates(df, max_examples=2)

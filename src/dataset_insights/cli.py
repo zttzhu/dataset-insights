@@ -72,7 +72,7 @@ def analyze(csv_path: str, outdir: str):
     # --- Compute ---
     summary = compute_summary(df)
     schema = compute_schema(df)
-    missingness = compute_missingness(df)
+    missingness = compute_missingness(df, normalize_suspicious=False)
     duplicates = compute_duplicates(df)
     outliers = compute_outliers(df)
     quality_issues, parseability = detect_column_warnings(df)
@@ -204,3 +204,7 @@ def analyze(csv_path: str, outdir: str):
             click.echo(f"  {issue.severity.upper()}{where}: {issue.message}")
 
     click.echo(f"Output written to: {out.resolve()}/")
+
+
+if __name__ == "__main__":
+    main()

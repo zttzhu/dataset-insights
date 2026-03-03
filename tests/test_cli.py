@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
+
 import pytest
 from click.testing import CliRunner
 
@@ -26,6 +29,19 @@ def test_analyze_help(runner):
     assert result.exit_code == 0
     assert "Usage" in result.output
     assert "CSV_PATH" in result.output
+
+
+def test_python_module_help_invocation():
+    """`python -m dataset_insights.cli --help` should print Click usage text."""
+    result = subprocess.run(
+        [sys.executable, "-m", "dataset_insights.cli", "--help"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    combined_output = result.stdout + result.stderr
+    assert result.returncode == 0
+    assert "Usage:" in combined_output
 
 
 def test_analyze_output_files(runner, sample_csv, tmp_path):
@@ -62,6 +78,23 @@ def test_summary_md_duplicate_insight_text(runner, duplicates_csv, tmp_path):
     assert "rows are exact copies of a row that already appeared earlier" in summary_md
     assert "distinct repeated patterns" in summary_md
     assert "are not shown" in summary_md
+
+
+def test_analyze_unicode_column_names_writes_reports(runner, tmp_path):
+    """Report writers should handle non-ASCII columns on all platforms."""
+    csv_path = tmp_path / "unicode.csv"
+    csv_path.write_text("名字,score\n张三,90\n李四,85\n", encoding="utf-8")
+
+    outdir = tmp_path / "reports"
+    result = runner.invoke(main, ["analyze", str(csv_path), "--outdir", str(outdir)])
+    assert result.exit_code == 0, f"CLI failed:\n{result.output}"
+
+    summary_text = (outdir / "summary.md").read_text(encoding="utf-8")
+    schema_text = (outdir / "schema.json").read_text(encoding="utf-8")
+    quality_text = (outdir / "data_quality.json").read_text(encoding="utf-8")
+    assert "`名字`" in summary_text
+    assert "score" in schema_text
+    assert "duplicates" in quality_text
 
 
 def test_empty_csv(runner, empty_csv, tmp_path):

@@ -368,9 +368,18 @@ def compute_schema(df: pd.DataFrame) -> list[dict]:
     return schema
 
 
-def compute_missingness(df: pd.DataFrame) -> pd.DataFrame:
-    """Return a DataFrame with columns: column, missing_count, missing_pct."""
-    cleaned, _ = coerce_suspicious_to_nan(df)
+def compute_missingness(df: pd.DataFrame, normalize_suspicious: bool = True) -> pd.DataFrame:
+    """Return a DataFrame with columns: column, missing_count, missing_pct.
+
+    By default, suspicious placeholder tokens are normalized to missing values
+    before counting. Set ``normalize_suspicious=False`` when input has already
+    been normalized in the calling flow.
+    """
+    if normalize_suspicious:
+        cleaned, _ = coerce_suspicious_to_nan(df)
+    else:
+        cleaned = df
+
     missing_count = cleaned.isna().sum()
     missing_pct = (missing_count / len(cleaned) * 100).round(2)
     result = pd.DataFrame(

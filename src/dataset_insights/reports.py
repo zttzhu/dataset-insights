@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 
@@ -95,17 +95,32 @@ def _build_insights_section(
     if outliers is None or outliers.empty:
         lines.append("No numeric outlier summary is available for this run.")
     else:
-        flagged = outliers[outliers["outlier_count"] > 0].copy()
+        flagged = cast(pd.DataFrame, outliers.loc[outliers["outlier_count"] > 0].copy())
         if flagged.empty:
             lines.append("No outliers were detected with the IQR method.")
         else:
-            flagged = flagged.sort_values("outlier_pct", ascending=False).reset_index(drop=True)
-            top = flagged.head(3)
+            flagged = cast(
+                pd.DataFrame,
+                flagged.sort_values(by="outlier_pct", ascending=False).reset_index(drop=True),
+            )
             highlights = []
-            for _, row in top.iterrows():
+            top_cols = flagged["column"].head(3).tolist()
+            top_counts = flagged["outlier_count"].head(3).tolist()
+            top_pcts = flagged["outlier_pct"].head(3).tolist()
+            for col_raw, raw_outlier_count, raw_outlier_pct in zip(top_cols, top_counts, top_pcts):
+                col = str(col_raw)
+                outlier_count = (
+                    int(raw_outlier_count)
+                    if isinstance(raw_outlier_count, (int, float))
+                    else 0
+                )
+                outlier_pct = (
+                    float(raw_outlier_pct)
+                    if isinstance(raw_outlier_pct, (int, float))
+                    else 0.0
+                )
                 highlights.append(
-                    f"`{row['column']}` has {int(row['outlier_count']):,} outliers "
-                    f"({float(row['outlier_pct']):.2f}%)"
+                    f"`{col}` has {outlier_count:,} outliers ({outlier_pct:.2f}%)"
                 )
             lines.append(
                 f"{len(flagged)} numeric columns have IQR outliers. Top columns by outlier rate: "
@@ -192,7 +207,7 @@ def write_summary_md(
                 prefix = f"`{issue['column']}`: " if issue.get("column") else ""
                 lines.append(f"- {prefix}{issue['message']}")
 
-    out_path.write_text("\n".join(lines) + "\n")
+    out_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return out_path
 
 
@@ -226,7 +241,7 @@ def write_schema_json(schema: list[dict], outdir: Path) -> Path:
     """Write column schema metadata to schema.json."""
     outdir.mkdir(parents=True, exist_ok=True)
     out_path = outdir / "schema.json"
-    out_path.write_text(json.dumps(schema, indent=2))
+    out_path.write_text(json.dumps(schema, indent=2), encoding="utf-8")
     return out_path
 
 
@@ -340,5 +355,5 @@ def write_data_quality_json(
         "parseability": parseability.to_dict(orient="records"),
     }
 
-    out_path.write_text(json.dumps(payload, indent=2))
+    out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return out_path
