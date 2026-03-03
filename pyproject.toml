@@ -7,6 +7,23 @@ name = "dataset-insights"
 version = "0.1.0"
 description = "CLI tool for instant CSV dataset orientation: schema, stats, missingness, and diagnostic plots"
 readme = "README.md"
+license = "MIT"
+authors = [
+    { name = "zttzhu" },
+]
+keywords = ["csv", "data-quality", "dataset", "eda", "cli"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+]
 requires-python = ">=3.10"
 dependencies = [
     "click>=8.0",
@@ -14,6 +31,11 @@ dependencies = [
     "matplotlib>=3.5",
     "seaborn>=0.12",
 ]
+
+[project.urls]
+Homepage = "https://github.com/zttzhu/dataset-insights"
+Repository = "https://github.com/zttzhu/dataset-insights"
+Issues = "https://github.com/zttzhu/dataset-insights/issues"
 
 [project.scripts]
 dataset-insights = "dataset_insights.cli:main"
