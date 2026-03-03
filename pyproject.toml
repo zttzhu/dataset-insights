@@ -25,3 +25,10 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dataset_insights"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--tb=short"
+filterwarnings = [
+    "ignore::PendingDeprecationWarning:seaborn",
+]

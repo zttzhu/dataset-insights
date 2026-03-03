@@ -83,13 +83,19 @@ def _build_insights_section(
         if duplicate_rows == 0:
             lines.append("No duplicate rows were detected.")
         else:
-            lines.append(
+            base = (
                 f"In this dataset, {duplicate_rows:,} rows are exact copies of a row that "
                 f"already appeared earlier. These duplicates come from {duplicate_groups:,} "
                 f"distinct repeated patterns, making up {duplicate_pct:.2f}% of all rows. "
-                f"Here are {shown_examples} example duplicate rows in duplicates.csv; "
-                f"the other {omitted_count:,} are not shown."
             )
+            if omitted_count > 0:
+                base += (
+                    f"See {shown_examples} example duplicate rows in duplicates.csv; "
+                    f"the other {omitted_count:,} are omitted."
+                )
+            else:
+                base += f"All {shown_examples} example duplicate rows are in duplicates.csv."
+            lines.append(base)
 
     lines.append("\n### Outliers (IQR Method)")
     if outliers is None or outliers.empty:
